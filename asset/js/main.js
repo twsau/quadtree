@@ -10,9 +10,12 @@ const F = {
 
 class Game {
 	static n = 100;
+	static mouseRectSize = 80;
 	constructor() {
 		PIXI.utils.skipHello();
 		this.app = new Application({antialias: true, width: 300, height: 300});
+
+		this.mouse = new Rect(this.app.renderer.view.width / 2 - Game.mouseRectSize / 2, this.app.renderer.view.height / 2 - Game.mouseRectSize / 2, Game.mouseRectSize, Game.mouseRectSize);
 
 		this.bounds = new Rect(0, 0, this.app.renderer.view.width, this.app.renderer.view.height);
 
@@ -30,17 +33,26 @@ class Game {
 	drawPoints() {
 		for (let i = 0; i < this.points.length; i++) {
 			let p = this.points[i];
-			this.ctx.lineStyle(0).beginFill(0xff0fff, 0.5).arc(p.x, p.y, 1, 0, Math.PI * 2).endFill();
+			let col = p.inRange ? 0x00ffff : 0xff0fff;
+			this.ctx.lineStyle(0).beginFill(col, 0.5).arc(p.x, p.y, 1, 0, Math.PI * 2).endFill();
 		}
+	}
+	drawMouseRect() {
+		this.ctx.beginFill(0xffff00, 0.05).drawRect(this.mouse.x, this.mouse.y, Game.mouseRectSize, Game.mouseRectSize).endFill();
 	}
 	update() {
 		// move
 		this.points.forEach(p => p.update(this.bounds));
 		this.quadTree.update(this.points);
+		// pointsInRange
+		this.quadTree.query(this.points, this.mouse).forEach(p => {
+			p.inRange = true;
+		});
 		// draw
 		this.ctx.clear();
 		this.quadTree.draw(this.ctx);
 		this.drawPoints();
+		this.drawMouseRect();
 	}
 	reset() {
 		this.points = [];
@@ -55,6 +67,11 @@ class Game {
 		$(document).on('click', '#reset', e => {
 			this.reset();
 		});
+		$(document).on('mousemove', e => {
+			let rect = document.getElementsByTagName('canvas')[0].getBoundingClientRect();
+			this.mouse.x = e.clientX - rect.left - Game.mouseRectSize / 2;
+			this.mouse.y = e.clientY - rect.top - Game.mouseRectSize / 2;
+		});
 	}
 }
 
@@ -63,6 +80,7 @@ class Point {
 		return new Point(F.intBetween(bounds.x, bounds.w), F.intBetween(bounds.y, bounds.h));
 	}
 	constructor(x, y) {
+		this.inRange = false;
 		this.x = x;
 		this.y = y;
 		this.vx = Math.random() < 0.5 ? -0.3 : 0.3;
@@ -98,8 +116,14 @@ class Rect {
 		this.w = w;
 		this.h = h;
 	}
-	contain(x, y) {
+	contains(x, y) {
 		return this.x <= x && x <= this.x + this.w && this.y <= y && y <= this.y + this.h;
+	}
+	intersects(range) {
+		if (range.x + range.w < this.x || range.x > this.x + this.w || range.y + range.h < this.y || range.y > this.y + this.h) {
+			return false;
+		}
+		return true;
 	}
 }
 
@@ -128,7 +152,7 @@ class QuadTree {
 		this.split = true;
 	}
 	insert(obj) {
-		if (!this.bounds.contain(obj.x, obj.y)) {
+		if (!this.bounds.contains(obj.x, obj.y)) {
 			return false;
 		}
 		if (this.obj.length < this.capacity) {
@@ -143,14 +167,33 @@ class QuadTree {
 			}
 		});
 	}
+	query(points, range) {
+		let arr = [];
+		if (!this.bounds.intersects(range)) {
+			return arr;
+		}
+		for (let i = 0; i < points.length; i++) {
+			if (range.contains(points[i].x, points[i].y)) {
+				arr.push(points[i]);
+			}
+		}
+		if (this.div.length < 1) {
+			return arr;
+		}
+		this.div.forEach(div => {
+			arr.concat(div.query(points, range));
+		});
+		return arr;
+	}
 	update(points) {
 		this.div = [];
 		this.split = false;
 		this.obj = [];
 
-		for (let i = 0; i < points.length; i++) {
-			this.insert(points[i]);
-		}
+		points.forEach(p => {
+			this.insert(p);
+			p.inRange = false;
+		});
 	}
 }
 
