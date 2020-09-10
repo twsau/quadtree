@@ -9,19 +9,14 @@ const F = {
 }
 
 class Game {
+	static n = 100;
 	constructor() {
 		PIXI.utils.skipHello();
 		this.app = new Application({antialias: true, width: 300, height: 300});
 
 		this.bounds = new Rect(0, 0, this.app.renderer.view.width, this.app.renderer.view.height);
 
-		this.points = [];
-		this.quadTree = new QuadTree(this.bounds);
-
-		for (let i = 0; i < 1000; i++) {
-			this.points.push(Point.random(this.bounds));
-			this.quadTree.insert(Point.random(this.bounds));
-		}
+		this.reset();
 
 		this.ctx = new Graphics();
 		this.app.stage.addChild(this.ctx);
@@ -43,15 +38,18 @@ class Game {
 		this.quadTree.draw(this.ctx);
 		this.drawPoints();
 	}
+	reset() {
+		this.points = [];
+		this.quadTree = new QuadTree(this.bounds);
+
+		for (let i = 0; i < 1000; i++) {
+			this.points.push(Point.random(this.bounds));
+			this.quadTree.insert(Point.random(this.bounds));
+		}
+	}
 	uiEvents() {
 		$(document).on('click', '#reset', e => {
-			this.points = [];
-			this.quadTree = new QuadTree(this.bounds);
-
-			for (let i = 0; i < 1000; i++) {
-				this.points.push(Point.random(this.bounds));
-				this.quadTree.insert(Point.random(this.bounds));
-			}
+			this.reset();
 		});
 	}
 }
