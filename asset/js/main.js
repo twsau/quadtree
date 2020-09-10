@@ -42,7 +42,7 @@ class Game {
 		this.points = [];
 		this.quadTree = new QuadTree(this.bounds);
 
-		for (let i = 0; i < 1000; i++) {
+		for (let i = 0; i < Game.n; i++) {
 			this.points.push(Point.random(this.bounds));
 			this.quadTree.insert(Point.random(this.bounds));
 		}
