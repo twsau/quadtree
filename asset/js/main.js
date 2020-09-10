@@ -34,6 +34,10 @@ class Game {
 		}
 	}
 	update() {
+		// move
+		this.points.forEach(p => p.update(this.bounds));
+		this.quadTree.update(this.points);
+		// draw
 		this.ctx.clear();
 		this.quadTree.draw(this.ctx);
 		this.drawPoints();
@@ -61,6 +65,29 @@ class Point {
 	constructor(x, y) {
 		this.x = x;
 		this.y = y;
+		this.vx = Math.random() < 0.5 ? -0.3 : 0.3;
+		this.vy = Math.random() < 0.5 ? -0.3 : 0.3;
+	}
+	handleEdges(bounds) {
+		if (this.x < bounds.x) {
+			this.x = bounds.x;
+			this.vx = -this.vx;
+		} else if (this.x > bounds.x + bounds.w) {
+			this.x = bounds.x + bounds.w;
+			this.vx = -this.vx;
+		}
+		if (this.y < bounds.y) {
+			this.y = bounds.y;
+			this.vy = -this.vy;
+		} else if (this.y > bounds.y + bounds.h) {
+			this.y = bounds.y + bounds.h;
+			this.vy = -this.vy;
+		}
+	}
+	update(bounds) {
+		this.handleEdges(bounds);
+		this.x += this.vx;
+		this.y += this.vy;
 	}
 }
 
@@ -82,10 +109,10 @@ class QuadTree {
 		this.div = [];
 		this.split = false;
 		this.obj = [];
-		this.capacity = 4;
+		this.capacity = 2;
 	}
 	draw(ctx) {
-		ctx.lineStyle(1, 0xffffff, 0.2).drawRect(this.bounds.x, this.bounds.y, this.bounds.w, this.bounds.h);
+		ctx.lineStyle(1, 0x00ffff, 0.1).drawRect(this.bounds.x, this.bounds.y, this.bounds.w, this.bounds.h);
 		this.div.forEach(div => div.draw(ctx));
 	}
 	subdivide() {
@@ -115,6 +142,15 @@ class QuadTree {
 				return true;
 			}
 		});
+	}
+	update(points) {
+		this.div = [];
+		this.split = false;
+		this.obj = [];
+
+		for (let i = 0; i < points.length; i++) {
+			this.insert(points[i]);
+		}
 	}
 }
 
