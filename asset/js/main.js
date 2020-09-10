@@ -9,18 +9,17 @@ const F = {
 }
 
 class Game {
-	static n = 100;
+	static n = 300;
 	static mouseRectSize = 80;
 	constructor() {
 		PIXI.utils.skipHello();
 		this.app = new Application({antialias: true, width: 300, height: 300});
-
 		this.mouse = new Rect(this.app.renderer.view.width / 2 - Game.mouseRectSize / 2, this.app.renderer.view.height / 2 - Game.mouseRectSize / 2, Game.mouseRectSize, Game.mouseRectSize);
-
 		this.bounds = new Rect(0, 0, this.app.renderer.view.width, this.app.renderer.view.height);
-
 		this.reset();
-
+		this.state = {
+			drawQuadTree: false,
+		};
 		this.ctx = new Graphics();
 		this.app.stage.addChild(this.ctx);
 
@@ -50,7 +49,9 @@ class Game {
 		});
 		// draw
 		this.ctx.clear();
-		this.quadTree.draw(this.ctx);
+		if (this.state.drawQuadTree) {
+			this.quadTree.draw(this.ctx);
+		}
 		this.drawPoints();
 		this.drawMouseRect();
 	}
@@ -67,10 +68,20 @@ class Game {
 		$(document).on('click', '#reset', e => {
 			this.reset();
 		});
-		$(document).on('mousemove', e => {
-			let rect = document.getElementsByTagName('canvas')[0].getBoundingClientRect();
-			this.mouse.x = e.clientX - rect.left - Game.mouseRectSize / 2;
-			this.mouse.y = e.clientY - rect.top - Game.mouseRectSize / 2;
+		if (window.innerWidth < 400 || window.innerHeight < 400) {
+			console.log('this device is kind of small... does it have a mouse?');
+		} else {
+			$(document).on('mousemove', e => {
+				let rect = document.getElementsByTagName('canvas')[0].getBoundingClientRect();
+				this.mouse.x = e.clientX - rect.left - Game.mouseRectSize / 2;
+				this.mouse.y = e.clientY - rect.top - Game.mouseRectSize / 2;
+			});
+		}
+		// g for draw quadtree
+		$(document).on('keypress', e => {
+			if (e.which == 71 || e.which == 103) {
+				this.state.drawQuadTree = !this.state.drawQuadTree;
+			}
 		});
 	}
 }
@@ -136,7 +147,7 @@ class QuadTree {
 		this.capacity = 2;
 	}
 	draw(ctx) {
-		ctx.lineStyle(1, 0x00ffff, 0.1).drawRect(this.bounds.x, this.bounds.y, this.bounds.w, this.bounds.h);
+		ctx.lineStyle(1, 0x00ffff, 0.04).drawRect(this.bounds.x, this.bounds.y, this.bounds.w, this.bounds.h);
 		this.div.forEach(div => div.draw(ctx));
 	}
 	subdivide() {

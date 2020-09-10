@@ -28,8 +28,27 @@ canvas {
 }
 
 #reset {
+	background-color: red;
+	border-radius: 3rem;
+	color: white;
+	height: 3rem;
 	left: 50%;
+	outline: none;
 	position: absolute;
 	top: calc(50% + 200px);
 	transform: translate(-50%, -50%);
+	width: 3rem;
+}
+
+#keys {
+	align-items: center;
+	background-color: #111;
+	color: white;
+	display: flex;
+	flex-direction: column;
+	font-family: 'IBM Plex Mono', monospace;
+	height: 3rem;
+	justify-content: center;
+	margin: 3rem auto;
+	width: 18rem;
 }
