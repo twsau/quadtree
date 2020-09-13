@@ -18,7 +18,7 @@ class Game {
 		this.bounds = new Rect(0, 0, this.app.renderer.view.width, this.app.renderer.view.height);
 		this.reset();
 		this.state = {
-			drawQuadTree: false,
+			drawQuadTree: true,
 		};
 		this.ctx = new Graphics();
 		this.app.stage.addChild(this.ctx);
@@ -144,10 +144,10 @@ class QuadTree {
 		this.div = [];
 		this.split = false;
 		this.obj = [];
-		this.capacity = 2;
+		this.capacity = 4;
 	}
 	draw(ctx) {
-		ctx.lineStyle(1, 0x00ffff, 0.04).drawRect(this.bounds.x, this.bounds.y, this.bounds.w, this.bounds.h);
+		ctx.lineStyle(1, 0x00ffff, 0.08).drawRect(this.bounds.x, this.bounds.y, this.bounds.w, this.bounds.h);
 		this.div.forEach(div => div.draw(ctx));
 	}
 	subdivide() {

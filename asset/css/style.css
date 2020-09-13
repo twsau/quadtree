@@ -1,21 +1,38 @@
 html, body {
 	height: 100%;
 	margin: 0;
-	overflow: hidden;
 	width: 100%;
 }
 
 body {
 	background-color: #222;
 	cursor: crosshair;
-	overflow-y: hidden;
 }
 
 canvas {
 	left: 50%;
 	position: absolute;
-	top: 50%;
+	top: 40%;
 	transform: translate(-50%, -50%);
+}
+
+a {
+	color: darkcyan;
+}
+
+a:hover {
+	color: cyan;
+}
+
+.text {
+	text-align: justify;
+	color: white;
+	font-family: 'IBM Plex Sans';
+	max-width: 90%;
+	position: relative;
+	margin: 1.5rem auto;
+	top: 20rem;
+	width: 25rem;
 }
 
 #loading {
@@ -27,15 +44,21 @@ canvas {
 	transform: translate(-50%, -50%);
 }
 
+h3 {
+	color: white;
+	font-family: 'IBM Plex Mono', monospace;
+	text-align: center;
+}
+
 #reset {
 	background-color: red;
 	border-radius: 3rem;
 	color: white;
 	height: 3rem;
-	left: 50%;
+	right: -0.5rem;
 	outline: none;
 	position: absolute;
-	top: calc(50% + 200px);
+	top: calc(50% + 145px);
 	transform: translate(-50%, -50%);
 	width: 3rem;
 }
@@ -47,8 +70,10 @@ canvas {
 	display: flex;
 	flex-direction: column;
 	font-family: 'IBM Plex Mono', monospace;
-	height: 3rem;
+	height: 4rem;
 	justify-content: center;
-	margin: 3rem auto;
-	width: 18rem;
+	margin: 3rem 0 0 1rem;
+	position: relative;
+	top: 19rem;
+	width: 14rem;
 }
