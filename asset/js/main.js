@@ -1,212 +1,249 @@
+// aliases ==================================================
+
 const Application = PIXI.Application;
+const Container = PIXI.Container;
 const Graphics = PIXI.Graphics;
 const loader = PIXI.Loader.shared;
 
-const F = {
-	intBetween: function(min, max) {
-		return Math.floor(Math.random() * (max - min + 1)) + min;
-	}
-}
+// object classes ==================================================
 
 class Game {
-	static n = 300;
-	static mouseRectSize = 80;
 	constructor() {
 		PIXI.utils.skipHello();
-		this.app = new Application({antialias: true, width: 300, height: 300});
-		this.mouse = new Rect(this.app.renderer.view.width / 2 - Game.mouseRectSize / 2, this.app.renderer.view.height / 2 - Game.mouseRectSize / 2, Game.mouseRectSize, Game.mouseRectSize);
-		this.bounds = new Rect(0, 0, this.app.renderer.view.width, this.app.renderer.view.height);
-		this.reset();
-		this.state = {
-			drawQuadTree: true,
-		};
-		this.ctx = new Graphics();
-		this.app.stage.addChild(this.ctx);
+		this.app = new Application({antialias: true, width: 400, height: 400});
+		this.bounds = Rect.init(0, 0, this.app.renderer.view.width, this.app.renderer.view.height);
 
-		this.uiEvents();
+		this.qt = new QuadTree(this.bounds);
+		this.canvas = new Graphics();
+		this.app.stage.addChild(this.canvas);
+
+		this.bubbles = [];
+		for (let i = 0; i < CONFIG.maxBubbles; i++) {
+			let bubble = new Bubble(
+				RANDOM.intBetween(this.bounds.x, this.bounds.w),
+				RANDOM.intBetween(this.bounds.y, this.bounds.h),
+				RANDOM.intBetween(2, 2)
+			);
+			this.bubbles.push(bubble);
+			this.app.stage.addChild(bubble);
+		}
 
 		$('#loading').remove();
 		document.body.appendChild(this.app.view);
 		this.app.ticker.add(delta => this.update(delta));
 	}
-	drawPoints() {
-		for (let i = 0; i < this.points.length; i++) {
-			let p = this.points[i];
-			let col = p.inRange ? 0x00ffff : 0xff0fff;
-			this.ctx.lineStyle(0).beginFill(col, 0.5).arc(p.x, p.y, 1, 0, Math.PI * 2).endFill();
-		}
-	}
-	drawMouseRect() {
-		this.ctx.beginFill(0xffff00, 0.05).drawRect(this.mouse.x, this.mouse.y, Game.mouseRectSize, Game.mouseRectSize).endFill();
-	}
 	update() {
-		// move
-		this.points.forEach(p => p.update(this.bounds));
-		this.quadTree.update(this.points);
-		// pointsInRange
-		this.quadTree.query(this.points, this.mouse).forEach(p => {
-			p.inRange = true;
-		});
-		// draw
-		this.ctx.clear();
-		if (this.state.drawQuadTree) {
-			this.quadTree.draw(this.ctx);
-		}
-		this.drawPoints();
-		this.drawMouseRect();
-	}
-	reset() {
-		this.points = [];
-		this.quadTree = new QuadTree(this.bounds);
-
-		for (let i = 0; i < Game.n; i++) {
-			this.points.push(Point.random(this.bounds));
-			this.quadTree.insert(Point.random(this.bounds));
-		}
-	}
-	uiEvents() {
-		$(document).on('click', '#reset', e => {
-			this.reset();
-		});
-		if (window.innerWidth < 400 || window.innerHeight < 400) {
-			console.log('this device is kind of small... does it have a mouse?');
-		} else {
-			$(document).on('mousemove', e => {
-				let rect = document.getElementsByTagName('canvas')[0].getBoundingClientRect();
-				this.mouse.x = e.clientX - rect.left - Game.mouseRectSize / 2;
-				this.mouse.y = e.clientY - rect.top - Game.mouseRectSize / 2;
+		this.canvas.clear();
+		const {bubbles, bounds, qt} = this;
+		qt.update(bubbles, this.canvas);
+		bubbles.forEach(a => {
+			let arr = qt.query(bubbles, new Rect(
+				a.x - a.r,
+				a.y - a.r,
+				a.x + a.r,
+				a.y + a.r
+			));
+			arr.forEach(b => {
+				if (a != b) {
+					if (Circle.intersects(a, b)) {
+						const angle = Math.atan2(a.y - b.y, a.x - b.x);
+						const {x: ax, y: ay, vx: avx, vy: avy} = a;
+						const {x: bx, y: by, vx: bvx, vy: bvy} = b;
+						a.x = bx + (a.r + b.r) * Math.cos(angle);
+						a.y = by + (a.r + b.r) * Math.sin(angle);
+						a.vx = bvx;
+						a.vy = bvy;
+						b.vx = avx;
+						b.vy = avy;
+					}
+				}
 			});
-		}
-		// g for draw quadtree
-		$(document).on('keypress', e => {
-			if (e.which == 71 || e.which == 103) {
-				this.state.drawQuadTree = !this.state.drawQuadTree;
-			}
+			a.update(bounds);
 		});
 	}
 }
 
-class Point {
-	static random(bounds) { // returns a point at a random position within a given bounds
-		return new Point(F.intBetween(bounds.x, bounds.w), F.intBetween(bounds.y, bounds.h));
-	}
-	constructor(x, y) {
-		this.inRange = false;
-		this.x = x;
-		this.y = y;
-		this.vx = Math.random() < 0.5 ? -0.3 : 0.3;
-		this.vy = Math.random() < 0.5 ? -0.3 : 0.3;
-	}
-	handleEdges(bounds) {
-		if (this.x < bounds.x) {
-			this.x = bounds.x;
-			this.vx = -this.vx;
-		} else if (this.x > bounds.x + bounds.w) {
-			this.x = bounds.x + bounds.w;
-			this.vx = -this.vx;
-		}
-		if (this.y < bounds.y) {
-			this.y = bounds.y;
-			this.vy = -this.vy;
-		} else if (this.y > bounds.y + bounds.h) {
-			this.y = bounds.y + bounds.h;
-			this.vy = -this.vy;
-		}
+class Bubble extends Container {
+	constructor(x, y, r) {
+		super();
+		Object.assign(this, Circle.init(x, y, r), {vx: RANDOM.coinToss() ? 0.3 : -0.3, vy: RANDOM.coinToss() ? 0.3 : -0.3});
+		this.sprite = Bubble.#init.sprite(r);
+		this.addChild(this.sprite);
 	}
 	update(bounds) {
-		this.handleEdges(bounds);
+		this.#move();
+		this.#handleEdges(bounds);
+	}
+	#handleEdges(bounds) {
+		if (this.x - this.r < bounds.x) {
+			this.x = bounds.x + this.r;
+			this.vx = -this.vx;
+		} else if (this.x + this.r > bounds.x + bounds.h) {
+			this.x = bounds.x + bounds.h - this.r;
+			this.vx = -this.vx;
+		}
+		if (this.y - this.r < bounds.y) {
+			this.y = bounds.y + this.r;
+			this.vy = -this.vy;
+		} else if (this.y + this.r > bounds.y + bounds.h) {
+			this.y = bounds.y + bounds.h - this.r;
+			this.vy = -this.vy;
+		}
+	}
+	#move() {
+		// this.vy += 0.9;
+		// this.vy *= 0.99;
 		this.x += this.vx;
 		this.y += this.vy;
+	}
+	static #init = {
+		sprite: r => {
+			let sprite = new Graphics();
+			sprite.beginFill(0xff00ff, 1).arc(0, 0, r, 0, Math.PI * 2).endFill();
+			return sprite;
+		}
+	}
+}
+
+
+// abstract physics classes ==================================================
+
+class Circle {
+	static init(x, y, r) {
+		return {x: x, y: y, r: r};
+	}
+	static contains(point) {
+
+	}
+	static intersects(circleA, circleB) {
+		return (Math.hypot(circleA.x - circleB.x, circleA.y - circleB.y) < circleA.r + circleB.r);
 	}
 }
 
 class Rect {
 	constructor(x, y, w, h) {
-		this.x = x;
-		this.y = y;
-		this.w = w;
-		this.h = h;
+		Object.assign(this, {x: x, y: y, w: w, h: h});
 	}
-	contains(x, y) {
-		return this.x <= x && x <= this.x + this.w && this.y <= y && y <= this.y + this.h;
+	static init(x, y, w, h) {
+		return {x: x, y: y, w: w, h: h};
 	}
-	intersects(range) {
-		if (range.x + range.w < this.x || range.x > this.x + this.w || range.y + range.h < this.y || range.y > this.y + this.h) {
-			return false;
-		}
-		return true;
+	static contains(point, rect) {
+		return (rect.x <= point.x && point.x <= rect.x + rect.w && rect.y <= point.y && point.y <= rect.y + rect.h);
+	}
+	static intersects(rectA, rectB) {
+		return (rectA.x + rectA.w < rectB.x || rectA.x > rectB.x + rectB.w || rectA.y + rectA.h < rectB.y || rectA.y > rectB.y + rectB.h) ? false : true;
+	}
+}
+
+class Vector {
+	constructor(x, y) {
+		Object.assign(this, {x: x, y: y});
+	}
+	static init(x, y) {
+		return {x: x, y: y};
 	}
 }
 
 class QuadTree {
 	constructor(rect) {
-		this.bounds = rect;
+		Object.assign(this, rect, {div: [], split: false, children: [], capacity: CONFIG.qt.capacity, visible: CONFIG.qt.visible});
+	}
+	update(objects, ctx) {
 		this.div = [];
+		this.children = [];
 		this.split = false;
-		this.obj = [];
-		this.capacity = 4;
+		objects.forEach(object => {this.insert(object);});
+		if (this.visible) {
+			this.draw(ctx);
+		}
 	}
 	draw(ctx) {
-		ctx.lineStyle(1, 0x00ffff, 0.08).drawRect(this.bounds.x, this.bounds.y, this.bounds.w, this.bounds.h);
+		const {x, y, w, h} = this;
+		ctx.lineStyle(1, 0x00ffff, 0.1).drawRect(x, y, w, h).endFill();
 		this.div.forEach(div => div.draw(ctx));
 	}
-	subdivide() {
-		let x = this.bounds.x;
-		let y = this.bounds.y;
-		let w = this.bounds.w / 2;
-		let h = this.bounds.h / 2;
-		let tl = new Rect(x, y, w, h);
-		let tr = new Rect(x + w, y, w, h);
-		let bl = new Rect(x, y + h, w, h );
-		let br = new Rect(x + w, y + h, w, h);
-		this.div.push(new QuadTree(tl), new QuadTree(tr), new QuadTree(bl), new QuadTree(br));
-		this.split = true;
-	}
-	insert(obj) {
-		if (!this.bounds.contains(obj.x, obj.y)) {
+	insert(object) {
+		const {x, y, w, h, div, split, children, capacity} = this;
+		if (!Rect.contains(new Vector(object.x, object.y), new Rect(x, y, w, h))) {
 			return false;
 		}
-		if (this.obj.length < this.capacity) {
-			this.obj.push(obj);
+		if (children.length < capacity) {
+			children.push(object);
 			return true;
-		} else if (!this.split) {
+		} else if (!split) {
 			this.subdivide();
 		}
-		this.div.forEach(div => {
-			if (div.insert(obj)) {
+		div.forEach(d => {
+			if (d.insert(object)) {
 				return true;
 			}
 		});
 	}
-	query(points, range) {
+	subdivide() {
+		const {x, y} = this;
+		const w = this.w / 2;
+		const h = this.h / 2;
+		this.div.push(
+			new QuadTree(Rect.init(x, y, w, h)),
+			new QuadTree(Rect.init(x + w, y, w, h)),
+			new QuadTree(Rect.init(x, y + h, w, h)),
+			new QuadTree(Rect.init(x + w, y + h, w, h))
+		);
+		this.split = true;
+	}
+	query(objects, range) {
+		const {x, y, w, h} = this;
 		let arr = [];
-		if (!this.bounds.intersects(range)) {
+		if (!Rect.intersects(range, new Rect(x, y, w, h))) {
 			return arr;
 		}
-		for (let i = 0; i < points.length; i++) {
-			if (range.contains(points[i].x, points[i].y)) {
-				arr.push(points[i]);
+		for (let i = 0; i < objects.length; i++) {
+			let o = objects[i];
+			if (Rect.contains(new Vector(o.x, o.y), range)) {
+				arr.push(o);
 			}
 		}
 		if (this.div.length < 1) {
 			return arr;
 		}
-		this.div.forEach(div => {
-			arr.concat(div.query(points, range));
+		this.div.forEach(d => {
+			arr.concat(d.query(objects, range));
 		});
 		return arr;
 	}
-	update(points) {
-		this.div = [];
-		this.split = false;
-		this.obj = [];
+}
 
-		points.forEach(p => {
-			this.insert(p);
-			p.inRange = false;
-		});
+// reference objects ==================================================
+
+const CONFIG = {
+	maxBubbles: 80,
+	qt: {
+		capacity: 2,
+		visible: true
+	}
+};
+
+const RANDOM = {
+	coinToss: function() {
+		return Math.random() < 0.5;
+	},
+	color: function() {
+		var letters = '0123456789ABCDEF';
+		  var color = '0x';
+		  for (var i = 0; i < 6; i++) {
+		    color += letters[Math.floor(Math.random() * 16)];
+		  }
+		  return color;
+	},
+	intBetween: function(min, max) {
+		return Math.floor(Math.random() * (max - min + 1)) + min;
+	},
+	floatBetween: function(min, max, places = 2) {
+		return (Math.random() * (min - max) + max).toFixed(places)
 	}
 }
+
+// loader ==================================================
 
 loader
 	// .add('sprite alias', 'filepath')
